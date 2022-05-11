@@ -20,12 +20,20 @@ ro$id <- 1
 ro <- fasterize(ro, r, "id")
 plot(ro)
 
-
 bu <- st_read("output/buildings.gpkg")
 bu <- st_buffer(bu, 100) %>% st_cast("MULTIPOLYGON")
 bu$id <- 1
 bu <- fasterize(bu, r, "id")
 plot(bu)
+
+# Clip roads and buildings
+
+pp <- st_read("data/other_shapes/Puropisteet.gpkg") %>% 
+  st_transform(crs = st_crs(r))
+pp <- st_buffer(pp, 100) %>% st_cast("MULTIPOLYGON")
+pp$id <- 1
+pp <- fasterize(pp, r, "id")
+plot(pp)
 
 # FINALIZE AREAS OF INTEREST
 
@@ -33,7 +41,7 @@ aoi <- sum(nr, na.rm = T)
 aoi[aoi > 1] <- 1
 aoi[aoi == 0] <- NA
 
-built <- sum(stack(ro,bu), na.rm = T)
+built <- sum(stack(ro,bu,pp), na.rm = T)
 built[built > 0] <- NA
 
 plot(aoi)
@@ -49,5 +57,6 @@ canopy <- resample(canopy, aoi, method = "ngb")
 aoi <- mask(aoi, canopy)
 plot(aoi)
 
-writeRaster(aoi, "output/aoi.tif", datatype = "INT1U", format = "GTiff")
+writeRaster(aoi, "output/aoi.tif", datatype = "INT1U", 
+            format = "GTiff", overwrite = T)
 
