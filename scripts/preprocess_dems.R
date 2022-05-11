@@ -1,52 +1,34 @@
-library(raster)
+library(terra)
 library(sf)
 library(tidyverse)
 
-aoi <- st_read("output/aoi.gpkg")
+latest <- st_read("/appl/data/geo/mml/dem2m/2008_latest/dem2m.shp")
 
-rs <- list.files("C:/Science/R_projects/Ulvinsalo/dems/", pattern = "tif$", full.names = T)
+aoi <- st_read("output/aoi.gpkg") %>% 
+  st_transform(crs = st_crs(latest))
 
-dems <- c()
-for(ir in rs){
-  r <- raster(ir)
-  
-  aoi2 <- st_transform(aoi, as.character(crs(r)))
-  # aoi2 <- st_as_sf(st_as_sfc(st_bbox(aoi2)+c(-3000,-3000,3000,3000)))
-  
-  if(length(st_intersects(aoi2, st_as_sf(st_as_sfc(st_bbox(r))))[[1]])>0){
-    dems <- c(dems, ir)
-  }
-  
-}
+latest_t <- latest[aoi,]
 
-if(length(dems)>1){
-  rast.list <- list()
-  for(ii in 1:length(dems)) { rast.list[ii] <- raster(dems[ii]) }
-  rast.list$fun <- mean
-  rast.list$tolerance <- 0.5
-  rast.mosaic <- do.call(mosaic,rast.list)
-} else {
-  rast.mosaic <- raster(dems)
-}
+# Merge files
 
-aoi2 <- st_transform(aoi, as.character(crs(rast.mosaic)))
-aoi2 <- st_as_sf(st_as_sfc(st_bbox(aoi2)+c(-3000,-3000,3000,3000)))
-rast.mosaic <- crop(rast.mosaic, aoi2)
+f <- latest_t$path
 
-if(as.character(crs(aoi)) != as.character(crs(rast.mosaic))){
-  rast.mosaic <- projectRaster(rast.mosaic, res = 2, crs = as.character(crs(aoi)))
-}
+rast.list <- list()
+for(ii in 1:length(f)) { rast.list[ii] <- rast(f[ii]) }
 
-rast.mosaic <- crop(rast.mosaic, aoi)
+rast.list <- terra::src(rast.list)
+rast.mosaic <- mosaic(rast.list)
+
+rast.mosaic <- terra::crop(rast.mosaic, aoi)
 
 plot(rast.mosaic)
 
-if(maxValue(rast.mosaic) < 650){
+if(max(values(rast.mosaic)) < 650){
   writeRaster(round(rast.mosaic*100), paste0("output/dem.tif"),
-              format = "GTiff", datatype = "INT2U", overwrite = T)
+              datatype = "INT2U", overwrite = T)
 } else {
   writeRaster(round(rast.mosaic*100), paste0("output/dem.tif"),
-              format = "GTiff", datatype = "INT4U", overwrite = T)
+              datatype = "INT4U", overwrite = T)
 }
 
-
+unlink(list.files(tempdir(), full.names = T, recursive = T))
