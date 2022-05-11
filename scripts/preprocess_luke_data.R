@@ -1,247 +1,49 @@
-library(raster)
-library(sf)
+library(terra)
 library(tidyverse)
+library(sf)
 
 aoi <- st_read("output/aoi.gpkg")
 
-rs <- list.files("E:/TomstGIS/luke_data/2019/", pattern = ".tif$", full.names = T, recursive = T)
+tifs <- list.files("/appl/data/geo/luke/vmi/2019", pattern = "img$", full.names = T)
+vars <- c("/ika_vmi1x",
+          "/keskipituus_vmi1x",
+          "/latvuspeitto_vmi1x",
+          "/lehtip_latvuspeitto_vmi1x",
+          "/tilavuus_vmi1x")
 
-roi <- st_as_sf(st_as_sfc(st_bbox(aoi)+c(-2000,-2000,2000,2000)))
 
-# FOREST AGE
+roi_t <- st_as_sf(st_as_sfc(st_bbox(aoi)+c(-2000,-2000,2000,2000)))
 
-rs2 <- rs[grepl("ika_", rs)]
-
-dems <- c()
-for(ir in rs2){
-  r <- raster(ir)
+for(var in vars){
+  r <- rast(tifs[grepl(var, tifs)])
   
-  p2 <- st_transform(aoi, as.character(crs(r)))
+  r <- crop(r, roi_t)
+  r[r > 32765] <- NA
   
-  roi2 <- st_as_sf(st_as_sfc(st_bbox(p2)+c(-3000,-3000,3000,3000)))
+  var_name <- gsub("_vmi1x_1519.img", "", tail(str_split(tifs[grepl(var, tifs)], "/")[[1]], 1))
   
-  if(length(st_intersects(roi2, st_as_sf(st_as_sfc(st_bbox(r))))[[1]])>0){
-    dems <- c(dems, ir)
-  }
+  plot(r, main = var_name)
   
-}
-
-if(length(dems)>1){
-  rast.list <- list()
-  for(ii in 1:length(dems)) { rast.list[ii] <- raster(dems[ii]) }
-  rast.list$fun <- mean
-  rast.list$tolerance <- 0.5
-  rast.mosaic <- do.call(mosaic,rast.list)
-} else {
-  rast.mosaic <- raster(dems)
-}
-
-p2 <- st_transform(aoi, as.character(crs(rast.mosaic)))
-roi2 <- st_as_sf(st_as_sfc(st_bbox(p2)+c(-3000,-3000,3000,3000)))
-rast.mosaic <- crop(rast.mosaic, roi2)
-
-if(as.character(crs(aoi)) != as.character(crs(rast.mosaic))){
-  rast.mosaic <- projectRaster(rast.mosaic, res = 16, crs = as.character(crs(aoi)))
-}
-
-rast.mosaic <- crop(rast.mosaic, aoi)
-rast.mosaic[rast.mosaic > 10000] <- NA
-
-plot(rast.mosaic)
-
-writeRaster(rast.mosaic, paste0("output/forest_age.tif"),
-            format = "GTiff", datatype = "INT2U", overwrite = T)
-
-
-# FOREST HEIGHT
-
-rs2 <- rs[grepl("keskipituus_", rs)]
-
-dems <- c()
-for(ir in rs2){
-  r <- raster(ir)
-  
-  p2 <- st_transform(aoi, as.character(crs(r)))
-  
-  roi2 <- st_as_sf(st_as_sfc(st_bbox(p2)+c(-3000,-3000,3000,3000)))
-  
-  if(length(st_intersects(roi2, st_as_sf(st_as_sfc(st_bbox(r))))[[1]])>0){
-    dems <- c(dems, ir)
-  }
+  writeRaster(r, paste0("output/VMI_",var_name,".tif"),
+              datatype = ifelse(max(values(r), na.rm = T) < 256, "INT1U", "INT2S"),
+              filetype = "GTiff", overwrite = T)
   
 }
 
-if(length(dems)>1){
-  rast.list <- list()
-  for(ii in 1:length(dems)) { rast.list[ii] <- raster(dems[ii]) }
-  rast.list$fun <- mean
-  rast.list$tolerance <- 0.5
-  rast.mosaic <- do.call(mosaic,rast.list)
-} else {
-  rast.mosaic <- raster(dems)
-}
-
-p2 <- st_transform(aoi, as.character(crs(rast.mosaic)))
-roi2 <- st_as_sf(st_as_sfc(st_bbox(p2)+c(-3000,-3000,3000,3000)))
-rast.mosaic <- crop(rast.mosaic, roi2)
-
-if(as.character(crs(aoi)) != as.character(crs(rast.mosaic))){
-  rast.mosaic <- projectRaster(rast.mosaic, res = 16, crs = as.character(crs(p)))
-}
-
-rast.mosaic <- crop(rast.mosaic, aoi)
-rast.mosaic[rast.mosaic > 10000] <- NA
-
-plot(rast.mosaic)
-
-writeRaster(rast.mosaic, paste0("output/forest_height.tif"),
-            format = "GTiff", datatype = "INT2U", overwrite = T)
-
-# CANOPY COVER
-
-rs2 <- rs[grepl("/latvuspeitto_", rs)]
-
-dems <- c()
-for(ir in rs2){
-  r <- raster(ir)
-  
-  p2 <- st_transform(aoi, as.character(crs(r)))
-  
-  roi2 <- st_as_sf(st_as_sfc(st_bbox(p2)+c(-3000,-3000,3000,3000)))
-  
-  if(length(st_intersects(roi2, st_as_sf(st_as_sfc(st_bbox(r))))[[1]])>0){
-    dems <- c(dems, ir)
-  }
-  
-}
-
-if(length(dems)>1){
-  rast.list <- list()
-  for(ii in 1:length(dems)) { rast.list[ii] <- raster(dems[ii]) }
-  rast.list$fun <- mean
-  rast.list$tolerance <- 0.5
-  rast.mosaic <- do.call(mosaic,rast.list)
-} else {
-  rast.mosaic <- raster(dems)
-}
-
-p2 <- st_transform(aoi, as.character(crs(rast.mosaic)))
-roi2 <- st_as_sf(st_as_sfc(st_bbox(p2)+c(-3000,-3000,3000,3000)))
-rast.mosaic <- crop(rast.mosaic, roi2)
-
-if(as.character(crs(aoi)) != as.character(crs(rast.mosaic))){
-  rast.mosaic <- projectRaster(rast.mosaic, res = 16, crs = as.character(crs(p)))
-}
-
-rast.mosaic <- crop(rast.mosaic, aoi)
-rast.mosaic[rast.mosaic > 10000] <- NA
-
-plot(rast.mosaic)
-
-writeRaster(rast.mosaic, paste0("output/canopy_cover.tif"),
-            format = "GTiff", datatype = "INT1U", overwrite = T)
-
-# CANOPY COVER DECIDIOUS
-
-rs2 <- rs[grepl("lehtip_latvuspeitto_", rs)]
-
-dems <- c()
-for(ir in rs2){
-  r <- raster(ir)
-  
-  p2 <- st_transform(aoi, as.character(crs(r)))
-  
-  roi2 <- st_as_sf(st_as_sfc(st_bbox(p2)+c(-3000,-3000,3000,3000)))
-  
-  if(length(st_intersects(roi2, st_as_sf(st_as_sfc(st_bbox(r))))[[1]])>0){
-    dems <- c(dems, ir)
-  }
-  
-}
-
-if(length(dems)>1){
-  rast.list <- list()
-  for(ii in 1:length(dems)) { rast.list[ii] <- raster(dems[ii]) }
-  rast.list$fun <- mean
-  rast.list$tolerance <- 0.5
-  rast.mosaic <- do.call(mosaic,rast.list)
-} else {
-  rast.mosaic <- raster(dems)
-}
-
-p2 <- st_transform(aoi, as.character(crs(rast.mosaic)))
-roi2 <- st_as_sf(st_as_sfc(st_bbox(p2)+c(-3000,-3000,3000,3000)))
-rast.mosaic <- crop(rast.mosaic, roi2)
-
-if(as.character(crs(aoi)) != as.character(crs(rast.mosaic))){
-  rast.mosaic <- projectRaster(rast.mosaic, res = 16, crs = as.character(crs(p)))
-}
-
-rast.mosaic <- crop(rast.mosaic, aoi)
-rast.mosaic[rast.mosaic > 10000] <- NA
-
-plot(rast.mosaic)
-
-writeRaster(rast.mosaic, paste0("output/canopy_cover_decid.tif"),
-            format = "GTiff", datatype = "INT1U", overwrite = T)
-
-havu <- raster(paste0("output/canopy_cover.tif")) - rast.mosaic
+havu <- rast("output/VMI_latvuspeitto.tif") - rast("output/VMI_lehtip_latvuspeitto.tif")
 havu[havu < 0] <- 0
 writeRaster(havu, paste0("output/canopy_cover_conif.tif"),
-            format = "GTiff", datatype = "INT1U", overwrite = T)
+            filetype = "GTiff", datatype = "INT1U", overwrite = T)
 
-havu <- havu/raster(paste0("output/canopy_cover.tif"))*100
+havu <- havu/rast("output/VMI_latvuspeitto.tif")*100
 havu[havu < 0] <- 0
-havu[raster(paste0("output/canopy_cover.tif")) == 0] <- 0
+havu[rast("output/VMI_latvuspeitto.tif") == 0] <- 0
 writeRaster(havu, paste0("output/canopy_portion_conif.tif"),
-            format = "GTiff", datatype = "INT1U", overwrite = T)
+            filetype = "GTiff", datatype = "INT1U", overwrite = T)
 
 havu <- 100-havu
-havu[raster(paste0("output/canopy_cover.tif")) == 0] <- 0
+havu[rast("output/VMI_latvuspeitto.tif") == 0] <- 0
 writeRaster(havu, paste0("output/canopy_portion_decid.tif"),
-            format = "GTiff", datatype = "INT1U", overwrite = T)
+            filetype = "GTiff", datatype = "INT1U", overwrite = T)
 
-
-# FOREST VOLUME
-
-rs2 <- rs[grepl("tilavuus_", rs)]
-
-dems <- c()
-for(ir in rs2){
-  r <- raster(ir)
-  
-  p2 <- st_transform(aoi, as.character(crs(r)))
-  
-  roi2 <- st_as_sf(st_as_sfc(st_bbox(p2)+c(-3000,-3000,3000,3000)))
-  
-  if(length(st_intersects(roi2, st_as_sf(st_as_sfc(st_bbox(r))))[[1]])>0){
-    dems <- c(dems, ir)
-  }
-  
-}
-
-if(length(dems)>1){
-  rast.list <- list()
-  for(ii in 1:length(dems)) { rast.list[ii] <- raster(dems[ii]) }
-  rast.list$fun <- mean
-  rast.list$tolerance <- 0.5
-  rast.mosaic <- do.call(mosaic,rast.list)
-} else {
-  rast.mosaic <- raster(dems)
-}
-
-p2 <- st_transform(aoi, as.character(crs(rast.mosaic)))
-roi2 <- st_as_sf(st_as_sfc(st_bbox(p2)+c(-3000,-3000,3000,3000)))
-rast.mosaic <- crop(rast.mosaic, roi2)
-
-if(as.character(crs(aoi)) != as.character(crs(rast.mosaic))){
-  rast.mosaic <- projectRaster(rast.mosaic, res = 16, crs = as.character(crs(p)))
-}
-
-rast.mosaic <- crop(rast.mosaic, aoi)
-rast.mosaic[rast.mosaic > 10000] <- NA
-
-plot(rast.mosaic)
-
-writeRaster(rast.mosaic, paste0("output/forest_volume.tif"),
-            format = "GTiff", datatype = "INT2U", overwrite = T)
+unlink(list.files(tempdir(), full.names = T, recursive = T))
