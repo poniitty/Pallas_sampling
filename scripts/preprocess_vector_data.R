@@ -4,30 +4,14 @@ library(tidyverse)
 
 aoi <- st_read("output/aoi.gpkg")
 
-shps <- list.files("data/maastotietokanta/", pattern = "^s_", full.names = T)
-shps <- shps[grepl("\\.shp$", shps)]
+list.files("/appl/data/geo/mml/maastotietokanta/2022/gpkg", full.names = T)
+st_layers("/appl/data/geo/mml/maastotietokanta/2022/gpkg/MTK-muut_22-03-03.gpkg")
 
-for(i in shps){
-  print(i)
-  
-  p <- st_read(i) %>% 
-    st_transform(st_crs(aoi))
-  
-  if(i == shps[1]){
-    nature_reserves <- p
-  } else {
-    nature_reserves <- bind_rows(nature_reserves, p)
-  }
-  
-}
+p <- bind_rows(read_sf("/appl/data/geo/mml/maastotietokanta/2022/gpkg/MTK-muut_22-03-03.gpkg", "kansallispuisto"),
+               read_sf("/appl/data/geo/mml/maastotietokanta/2022/gpkg/MTK-muut_22-03-03.gpkg", "luonnonpuisto"),
+               read_sf("/appl/data/geo/mml/maastotietokanta/2022/gpkg/MTK-muut_22-03-03.gpkg", "luonnonsuojelualue"))
 
-nature_reserves <- nature_reserves %>% filter(TASTAR != 10000) %>% 
-  filter(!(TASTAR == 30000 & LUOKKA == 72200)) %>% 
-  group_by(RYHMA) %>% 
-  summarise(RYHMA = median(RYHMA, na.rm = TRUE))
-
-nature_reserves <- st_crop(nature_reserves, aoi)
-
+nature_reserves <- st_crop(p, aoi)
 
 plot(st_geometry(nature_reserves))
 
@@ -35,26 +19,11 @@ st_write(nature_reserves, "output/nature_reserves.gpkg")
 
 # Roads
 
+st_layers("/appl/data/geo/mml/maastotietokanta/2022/gpkg/MTK-tie_22-03-03.gpkg")
 
-shps <- list.files("data/maastotietokanta/", pattern = "^l_", full.names = T)
-shps <- shps[grepl("\\.shp$", shps)]
+p <- read_sf("/appl/data/geo/mml/maastotietokanta/2022/gpkg/MTK-tie_22-03-03.gpkg", "tieviiva")
 
-for(i in shps){
-  print(i)
-  
-  p <- st_read(i) %>% 
-    st_transform(st_crs(aoi))
-  
-  if(i == shps[1]){
-    roads <- p
-  } else {
-    roads <- bind_rows(roads, p)
-  }
-  
-}
-
-roads <- st_crop(roads, aoi)
-
+roads <- st_crop(p, aoi)
 
 plot(st_geometry(roads))
 
@@ -62,26 +31,11 @@ st_write(roads, "output/roads.gpkg")
 
 # buildings
 
+st_layers("/appl/data/geo/mml/maastotietokanta/2022/gpkg/MTK-rakennus_22-03-03.gpkg")
 
-shps <- list.files("data/maastotietokanta/", pattern = "^r_", full.names = T)
-shps <- shps[grepl("\\.shp$", shps)]
+p <- read_sf("/appl/data/geo/mml/maastotietokanta/2022/gpkg/MTK-rakennus_22-03-03.gpkg", "rakennus")
 
-for(i in shps){
-  print(i)
-  
-  p <- st_read(i) %>% 
-    st_transform(st_crs(aoi))
-  
-  if(i == shps[1]){
-    buildings <- p
-  } else {
-    buildings <- bind_rows(buildings, p)
-  }
-  
-}
-
-buildings <- st_crop(buildings, aoi)
-
+buildings <- st_crop(p, aoi)
 
 plot(st_geometry(buildings))
 
