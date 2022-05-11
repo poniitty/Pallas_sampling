@@ -42,7 +42,7 @@ plot(built)
 aoi <- mask(aoi, built)
 plot(aoi)
 
-canopy <- raster("output/canopy_cover.tif")
+canopy <- raster("output/VMI_latvuspeitto.tif")
 canopy[!is.na(canopy)] <- 1
 canopy <- resample(canopy, aoi, method = "ngb")
 
