@@ -15,3 +15,11 @@ polygon <- df %>%
 plot(st_geometry(polygon))
 
 st_write(polygon, "output/aoi.gpkg")
+
+# Previous points
+
+d <- read_delim("data/other_shapes/Puropisteet.csv", delim = ";")
+
+d <- d %>% st_as_sf(coords = c("E","N"), crs = 4326)
+
+d %>% st_write("data/other_shapes/Puropisteet.gpkg")
