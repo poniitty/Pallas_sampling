@@ -5,9 +5,10 @@ library(raster)
 library(sf)
 library(tidyverse)
 
-library(Rsagacmd)
+library(Rsagacmd, lib.loc = "/projappl/project_2003061/Rpackages/")
 
-saga <- saga_gis()
+saga_version("saga_cmd")
+saga <- saga_gis(cores = future::availableCores())
 
 dem <- raster("output/dem.tif")/100
 
@@ -28,7 +29,9 @@ plot(svi$svf)
 
 rad <- saga$ta_lighting$potential_incoming_solar_radiation(grd_dem = dem,
                                                            grd_svf = svi$svf,
-                                                           latitude = 63.97,
+                                                           latitude = st_bbox(dem) %>% st_as_sfc() %>% 
+                                                             st_centroid() %>% st_transform(crs = 4326) %>% 
+                                                             st_coordinates() %>% as.data.frame() %>% pull(Y),
                                                            period = 2,
                                                            day = "2020-01-01",
                                                            day_stop = "2020-12-31",
