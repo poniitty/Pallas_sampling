@@ -53,3 +53,15 @@ plot(tpi)
 
 writeRaster(tpi, "output/tpi.tif", format = "GTiff")
 
+# Dist to forest
+
+cc <- raster("output/VMI_latvuspeitto.tif")
+plot(cc)
+cc[cc < 10] <- NA
+cc[cc >= 10] <- 1
+cc <- saga$grid_tools$proximity_grid(cc)
+plot(cc$distance)
+cc$distance[cc$distance >= 100] <- 100
+
+writeRaster(round(cc$distance), "output/dist_forest.tif", format = "GTiff")
+
