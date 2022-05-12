@@ -1,5 +1,4 @@
 
-
 library(tidyverse)
 library(sf)
 library(dplyr)
@@ -12,27 +11,29 @@ library(rgdal)
 ###################################################################################
 #
 
-list.files(pattern = ".tif$", full.names = T)
+list.files("output",pattern = ".tif$", full.names = T)
 
-aoi <- st_read(paste0("study_area_", lyh, ".shp"))
+aoi <- st_read("output/aoi.gpkg")
 
 swi <- raster("output/swi.tif")
 dem <- raster("output/dem.tif")/100
 pisr <- raster("output/pisr.tif")
 tpi <- raster("output/tpi.tif")
-puu <- raster("output/canopy_cover.tif")
+puu <- raster("output/VMI_latvuspeitto.tif")
 lpuu <- raster("output/canopy_portion_decid.tif")
-pvol <- raster("output/forest_volume.tif")
+pvol <- raster("output/VMI_tilavuus.tif")
+dd <- raster("output/dist_forest.tif")
 
 lpuu <- resample(lpuu, swi)
 puu <- resample(puu, swi)
 pvol <- resample(pvol, swi)
 pisr <- resample(pisr, swi)
+dd <- resample(dd, swi)
 
-plot(pvol)
+plot(dd)
 
-s <- stack(swi, dem, lpuu, puu, pvol, pisr, tpi)
-names(s) <- c("swi", "dem", "lpuu", "puu", "pvol", "pisr", "tpi")
+s <- stack(swi, dem, lpuu, puu, pvol, pisr, tpi, dd)
+names(s) <- c("swi", "dem", "lpuu", "puu", "pvol", "pisr", "tpi", "dd")
 plot(s)
 
 aoi <- raster("output/aoi.tif")
@@ -43,7 +44,7 @@ plot(s)
 
 ###################################################################################
 #install.packages("iSDM")
-library(iSDM)
+library(iSDM, lib.loc = "/projappl/project_2003061/Rpackages/")
 
 s <- aggregate(s, 5)
 
@@ -94,7 +95,7 @@ repeat {
   if(length(temp) == 1){
     Empty <- rbind.SpatialPointsDataFrame(Empty, samp)
   } else {
-    if(min(dist(temp@coords, method = "euclidean")) >= 50){
+    if(min(dist(temp@coords, method = "euclidean")) >= 100){
       Empty <- rbind.SpatialPointsDataFrame(Empty, samp)
     }
   }
@@ -103,7 +104,7 @@ repeat {
 }
 
 
-plot(s[[1]], col=rev(bpy.colors(100)))
+plot(s[[4]], col=rev(bpy.colors(100)))
 plot(Empty, add=TRUE, col=1, pch=19)
 
 values <- raster::extract(s, Empty)
@@ -118,6 +119,12 @@ hist(values[,7])
 
 Empty$id <- 1:nrow(Empty)
 
-st_write(st_as_sf(Empty), "samples/Sample100_50m.gpkg")
+st_write(st_as_sf(Empty), "samples/Sample100_100m.gpkg", append=FALSE)
 
+d <- bind_cols(st_as_sf(Empty) %>% st_drop_geometry() %>% dplyr::select(-prob),
+          st_as_sf(Empty) %>% st_coordinates() %>% as.data.frame(),
+          st_as_sf(Empty) %>% st_transform(crs = 4326) %>% st_coordinates() %>% as.data.frame())
 
+names(d) <- c("id","X_TM35FIN","Y_TM35FIN", "Lon", "Lat")
+
+d %>% write_csv("samples/Sample100_100m.csv")
